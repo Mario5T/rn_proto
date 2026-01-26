@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 import express from 'express';
 import cors from 'cors';
 import path from 'path';
@@ -10,16 +11,16 @@ import { WorkspaceManager } from './workspace';
 import { SimulatorController } from './simulator';
 import { RunnerError } from './errors';
 import dotenv from 'dotenv';
+import { program } from 'commander';
 
 dotenv.config();
 
 const execAsync = promisify(exec);
 
-const PORT = parseInt(process.env.RUNNER_PORT || '3001', 10);
-const workspace = new WorkspaceManager();
-const sim = new SimulatorController();
+async function start(config: { port: number, storagePath?: string, nativeAppPath?: string }) {
+    const workspace = new WorkspaceManager(config.storagePath);
+    const sim = new SimulatorController();
 
-async function start() {
     await workspace.init();
     const token = await workspace.getOrCreateToken();
 
@@ -180,7 +181,7 @@ async function start() {
 
             // 3. Sync files to native app directory
             log('Syncing files to native project...');
-            const nativeAppDir = process.env.NATIVE_APP_PATH || path.join(process.cwd(), '..', '..', 'apps', 'native');
+            const nativeAppDir = config.nativeAppPath || process.env.NATIVE_APP_PATH || path.join(process.cwd(), '..', '..', 'apps', 'native');
 
             if (!(await workspace.syncSessionToDirectory(sessionId, nativeAppDir).then(() => true).catch(() => false))) {
                 // If it fails, maybe the path is wrong or session missing
@@ -254,15 +255,30 @@ async function start() {
         });
     };
 
-    server.listen(PORT, '127.0.0.1', () => {
+    server.listen(config.port, '127.0.0.1', () => {
         console.log(chalk.green('\n🚀 RN Playground Local Runner Active'));
-        console.log(chalk.cyan(`📍 URL: http://127.0.0.1:${PORT}`));
+        console.log(chalk.cyan(`📍 URL: http://127.0.0.1:${config.port}`));
         console.log(chalk.yellow(`🔑 Token: ${token}`));
         console.log(chalk.gray('-------------------------------------------\n'));
     });
 }
 
-start().catch(err => {
+program
+    .name('rn-playground-runner')
+    .description('Local runner for React Native Playground')
+    .version('0.1.0')
+    .option('-p, --port <number>', 'port to listen on', '3001')
+    .option('-s, --storage <path>', 'path for session storage')
+    .option('-n, --native <path>', 'path to native expo project boilerplate')
+    .parse(process.argv);
+
+const options = program.opts();
+
+start({
+    port: parseInt(options.port, 10),
+    storagePath: options.storage,
+    nativeAppPath: options.native
+}).catch(err => {
     console.error(chalk.red('Failed to start runner:'), err);
     process.exit(1);
 });

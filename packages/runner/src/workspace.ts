@@ -10,8 +10,8 @@ export class WorkspaceManager {
     private readonly templateDir: string;
     private readonly tokenFile: string;
 
-    constructor() {
-        this.root = process.env.RUNNER_STORAGE_PATH || path.join(os.homedir(), '.rn-playground');
+    constructor(customRoot?: string) {
+        this.root = customRoot || process.env.RUNNER_STORAGE_PATH || path.join(os.homedir(), '.rn-playground');
         this.sessionsDir = path.join(this.root, 'sessions');
         this.templateDir = path.join(this.root, 'template');
         this.tokenFile = path.join(this.root, 'token');
