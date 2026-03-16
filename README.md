@@ -1,5 +1,9 @@
 # React Native Web Playground
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Node.js](https://img.shields.io/badge/Node.js-%3E%3D18.0.0-brightgreen)](https://nodejs.org/)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
+
 A web-based React Native playground similar to Expo Snack that allows developers to write, preview, and share React Native code directly in the browser.
 
 ## 🚀 Features
@@ -138,11 +142,25 @@ See [docs/vision.md](docs/vision.md) for detailed API support classification:
 
 ## 🤝 Contributing
 
-This is currently in active development. Check the [task breakdown](.gemini/antigravity/brain/cf9ff710-c1a5-4a0b-8eff-70116a5b5ba3/task.md) for upcoming work.
+We welcome contributions from the community! Please read our [Contributing Guide](CONTRIBUTING.md) for details on:
+
+- Setting up your development environment
+- Our coding standards and commit conventions
+- The pull request process
+
+See the [open issues](https://github.com/Gravattack/rn_prototype1/issues) for a list of known issues and planned features.
+
+## 📜 Code of Conduct
+
+This project follows the [Contributor Covenant Code of Conduct](CODE_OF_CONDUCT.md). By participating, you are expected to uphold this code.
+
+## 🔒 Security
+
+If you discover a security vulnerability, please see our [Security Policy](SECURITY.md) for responsible disclosure instructions. **Do not open a public issue for security vulnerabilities.**
 
 ## 📄 License
 
-MIT
+This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.
 
 ---
 

@@ -2,6 +2,16 @@
   "name": "playground",
   "version": "0.1.0",
   "private": true,
+  "license": "MIT",
+  "author": "Aditya Singh",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Gravattack/rn_prototype1.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Gravattack/rn_prototype1/issues"
+  },
+  "homepage": "https://github.com/Gravattack/rn_prototype1#readme",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
