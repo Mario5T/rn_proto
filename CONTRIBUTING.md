@@ -55,7 +55,7 @@ cd packages/runner
 npm run dev
 ```
 
-The web UI will be available at [http://localhost:3000](http://localhost:3000).
+The web UI will be available at [*](*).
 
 ## Project Structure
 
