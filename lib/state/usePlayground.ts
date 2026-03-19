@@ -160,8 +160,19 @@ export function usePlayground() {
         // Sync to Local Runner if connected
         if (isConnected) {
             try {
-                await runOnLocal(state.files);
-                setState(prev => ({ ...prev, dirtyFiles: [] })); // Clear dirty state on successful run/sync
+                // Normalize file names to match native workspace conventions.
+                // The playground uses App.jsx; the native workspace expects App.tsx.
+                const normalizedFiles: Record<string, string> = {};
+                const FILE_NAME_MAP: Record<string, string> = {
+                    'App.jsx': 'App.tsx',
+                    'App.js': 'App.tsx',
+                };
+                for (const [name, content] of Object.entries(state.files)) {
+                    normalizedFiles[FILE_NAME_MAP[name] ?? name] = content;
+                }
+
+                await runOnLocal(normalizedFiles);
+                setState(prev => ({ ...prev, dirtyFiles: [] }));
                 addConsoleMessage({
                     level: 'info',
                     message: 'Synced to Local Runner',
@@ -171,13 +182,6 @@ export function usePlayground() {
                 console.error('Failed to sync to local runner:', err);
             }
         }
-
-        // Auto-sync to legacy native app if running locally (for backwards compatibility)
-        fetch('/api/native/sync', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ code: code }),
-        }).catch(() => { /* ignore */ });
 
         addConsoleMessage({
             level: 'info',

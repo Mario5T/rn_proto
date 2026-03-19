@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 
 export default function App() {
@@ -25,6 +25,7 @@ export default function App() {
               { scale },
               { rotate: `${rotation}deg` }
             ],
+            // @ts-ignore
             transition: 'all 0.3s ease-in-out',
           }
         ]}

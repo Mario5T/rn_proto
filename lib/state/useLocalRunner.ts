@@ -121,19 +121,52 @@ export function useLocalRunner() {
     }, [isConnected, token, sessionId]);
 
     /**
-     * Pair with the runner using the displayed token.
-     * Stores both token AND runnerId to detect future restarts.
+     * Pair with the runner using the token displayed in the terminal.
+     *
+     * Stores the token + runnerId, then immediately validates by calling /health.
+     * Returns { success: true } on valid pairing, { success: false, error } otherwise.
+     * On failure, the stored state is cleaned up so the UI shows the error state.
      */
-    const pair = (newToken: string) => {
+    const pair = async (newToken: string): Promise<{ success: boolean; error?: string }> => {
+        // Optimistically store the token so the health check can use it via status
         localStorage.setItem('runner_token', newToken);
-        // Store current runnerId with the token
         if (status.runnerId) {
             localStorage.setItem('runner_id', status.runnerId);
         }
         setToken(newToken);
         setPairingRequired(false);
         setRunnerRestarted(false);
+
+        // Validate immediately by re-checking health with this token
+        try {
+            const res = await fetch(`${RUNNER_URL}/health`);
+            if (!res.ok) {
+                throw new Error(`Runner returned ${res.status}`);
+            }
+            const data = await res.json();
+
+            // Verify runnerId still matches (runner may have restarted between token display and paste)
+            if (data.runnerId && status.runnerId && data.runnerId !== status.runnerId) {
+                throw new Error('Runner was restarted — please paste the new token.');
+            }
+
+            // Pairing confirmed — update stored runnerId with the latest
+            if (data.runnerId) {
+                localStorage.setItem('runner_id', data.runnerId);
+            }
+
+            return { success: true };
+        } catch (err) {
+            // Pairing failed — clean up so the UI reverts to the pairing prompt
+            localStorage.removeItem('runner_token');
+            localStorage.removeItem('runner_id');
+            setToken(null);
+            setPairingRequired(true);
+            const message = err instanceof Error ? err.message : 'Could not connect to sim-bridge';
+            return { success: false, error: message };
+        }
     };
+
 
     const runOnLocal = async (files: Record<string, string>) => {
         if (!token) return;

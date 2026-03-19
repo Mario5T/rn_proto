@@ -95,29 +95,25 @@ export async function ensureWorkspace(): Promise<string> {
     }
 
     // 3. Ensure native project generation (Prebuild)
-    // We use `expo prebuild` to generate the ios/ directory cleanly.
-    // This allows us to use `xcodebuild` directly later.
+    // We run `expo prebuild` once to generate the ios/ directory.
+    // The actual native build is handled by `expo run:ios` in the runner,
+    // which correctly configures Xcode, installs Pods, and targets the simulator.
     const iosPath = path.join(WORKSPACE_PATH, 'ios');
     const podfileLockPath = path.join(iosPath, 'Podfile.lock');
 
-    // Check if we need to prebuild (missing ios/ or missing Pods)
     if (!fs.existsSync(iosPath) || !fs.existsSync(podfileLockPath)) {
-        console.log(chalk.blue('⚙️  Generating native iOS project (this may take a minute)...'));
+        console.log(chalk.blue('⚙️  Generating native iOS project (one-time setup)...'));
         try {
             await execAsync('npx expo prebuild --platform ios --clean', {
                 cwd: WORKSPACE_PATH,
                 env: {
                     ...process.env,
-                    CI: '1',
                     EXPO_NO_TELEMETRY: '1',
                     EXPO_NO_UPDATE_CHECK: '1'
-                }
+                },
+                timeout: 120000 // 2 min
             });
             console.log(chalk.green('✓ Native iOS project generated'));
-
-            // PATCH: Enforce simulator support in Xcode project
-            await patchXcodeProject(iosPath);
-
         } catch (error: any) {
             throw new RunnerError(
                 'WORKSPACE_CORRUPT',
@@ -132,42 +128,26 @@ export async function ensureWorkspace(): Promise<string> {
     return WORKSPACE_PATH;
 }
 
+
 /**
- * Patches the Xcode project file to ensure it supports simulators.
- * Expo prebuild sometimes defaults to iphoneos-only for some configurations.
+ * File name mappings from playground conventions → native workspace conventions.
+ *
+ * The web playground uses .jsx extensions by default (e.g. App.jsx) while the
+ * native workspace is bootstrapped with TypeScript (App.tsx). We normalize these
+ * so the user's code always lands in the right file.
  */
-async function patchXcodeProject(iosPath: string): Promise<void> {
-    try {
-        const pbxProjPath = path.join(iosPath, 'native.xcodeproj/project.pbxproj');
-        if (!fs.existsSync(pbxProjPath)) return;
-
-        let content = await fs.readFile(pbxProjPath, 'utf8');
-
-        // Check if already patched to avoid duplicates if run multiple times
-        if (content.includes('SUPPORTED_PLATFORMS = "iphoneos iphonesimulator"')) {
-            return;
-        }
-
-        console.log(chalk.blue('🔧 Patching Xcode project for simulator support...'));
-
-        // Regex to find buildSettings block start
-        // We inject SUPPORTED_PLATFORMS into every buildSettings block
-        const buildSettingsRegex = /buildSettings\s*=\s*{/g;
-
-        content = content.replace(buildSettingsRegex, (match) => {
-            return `${match}\n\t\t\t\tSUPPORTED_PLATFORMS = "iphoneos iphonesimulator";`;
-        });
-
-        await fs.writeFile(pbxProjPath, content, 'utf8');
-        console.log(chalk.green('✓ Xcode project patched'));
-    } catch (error) {
-        console.warn(chalk.yellow('⚠ Failed to patch Xcode project (build might fail):'), error);
-    }
-}
+const FILE_NAME_MAP: Record<string, string> = {
+    'App.jsx': 'App.tsx',
+    'App.js': 'App.tsx',
+};
 
 /**
- * Syncs files from a session to the native workspace.
- * Overwrites app source files only, never touches node_modules.
+ * Syncs files from a session directory to the native workspace.
+ *
+ * Rules:
+ * - Apply FILE_NAME_MAP to normalize playground file names to native conventions.
+ * - Never overwrite files that control the native build (package.json, etc.).
+ * - Never touch node_modules, .expo, or hidden directories.
  */
 export async function syncToWorkspace(
     sessionPath: string,
@@ -175,30 +155,35 @@ export async function syncToWorkspace(
 ): Promise<void> {
     const files = await fs.readdir(sessionPath);
 
+    // Files that must NEVER be overwritten in the native workspace
+    const skipFiles = new Set([
+        'package.json',
+        'package-lock.json',
+        'tsconfig.json',
+        'babel.config.js',
+        'babel.config.ts',
+        'metro.config.js',
+        'metro.config.ts',
+        'app.json',
+        'app.config.js',
+        'app.config.ts',
+        'node_modules',
+        '.expo',
+    ]);
+
     for (const file of files) {
-        const src = path.join(sessionPath, file);
-        const dest = path.join(workspacePath, file);
-
-        // Skip files that would break the native app
-        const skipFiles = [
-            'package.json',
-            'package-lock.json',
-            'tsconfig.json',
-            'babel.config.js',
-            'metro.config.js',
-            'app.json',
-            'node_modules',
-            '.expo'
-        ];
-
-        if (skipFiles.includes(file) || file.startsWith('.')) {
+        if (skipFiles.has(file) || file.startsWith('.')) {
             continue;
         }
 
+        // Normalize file name if needed (e.g. App.jsx → App.tsx)
+        const destName = FILE_NAME_MAP[file] ?? file;
+
+        const src = path.join(sessionPath, file);
+        const dest = path.join(workspacePath, destName);
+
         const stats = await fs.stat(src);
-        if (stats.isFile()) {
-            await fs.copy(src, dest, { overwrite: true });
-        } else if (stats.isDirectory()) {
+        if (stats.isFile() || stats.isDirectory()) {
             await fs.copy(src, dest, { overwrite: true });
         }
     }

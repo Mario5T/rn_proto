@@ -54,34 +54,45 @@ function TokenInput() {
     const { pair, pairingRequired } = useLocalRunner();
     const [tokenValue, setTokenValue] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [errorMsg, setErrorMsg] = useState('');
 
     if (!pairingRequired) return null;
 
     const handleSubmit = async () => {
         if (!tokenValue.trim()) return;
         setIsSubmitting(true);
-        await pair(tokenValue.trim());
+        setErrorMsg('');
+        const result = await pair(tokenValue.trim());
         setIsSubmitting(false);
-        setTokenValue('');
+        if (result.success) {
+            setTokenValue('');
+        } else {
+            setErrorMsg(result.error ?? 'Failed to connect. Is sim-bridge running?');
+        }
     };
 
     return (
-        <div className="flex items-center gap-2">
-            <input
-                type="text"
-                value={tokenValue}
-                onChange={(e) => setTokenValue(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
-                placeholder="Paste runner token"
-                className="input w-48 text-sm"
-            />
-            <button
-                onClick={handleSubmit}
-                disabled={!tokenValue.trim() || isSubmitting}
-                className="btn btn--secondary text-sm px-3 py-2"
-            >
-                {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Connect'}
-            </button>
+        <div className="flex flex-col items-end gap-1">
+            <div className="flex items-center gap-2">
+                <input
+                    type="text"
+                    value={tokenValue}
+                    onChange={(e) => { setTokenValue(e.target.value); setErrorMsg(''); }}
+                    onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
+                    placeholder="Paste runner token"
+                    className={`input w-48 text-sm ${errorMsg ? 'border-red-400 focus:border-red-500' : ''}`}
+                />
+                <button
+                    onClick={handleSubmit}
+                    disabled={!tokenValue.trim() || isSubmitting}
+                    className="btn btn--secondary text-sm px-3 py-2"
+                >
+                    {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Connect'}
+                </button>
+            </div>
+            {errorMsg && (
+                <p className="text-xs text-red-500 max-w-48 text-right">{errorMsg}</p>
+            )}
         </div>
     );
 }
