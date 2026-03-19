@@ -37,7 +37,7 @@ export default function PreviewPane({ iframeContent }: PreviewPaneProps) {
             return;
         }
 
-        let timeoutId: NodeJS.Timeout;
+        let timeoutId: ReturnType<typeof setTimeout>;
         let isMounted = true;
         setIsPolling(true);
 
